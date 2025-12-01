@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
 
-from utility import MyFilter, FileIO
+from utils import MyFilter, FileIO
 
 # 定义LSTM网络结构
 class LSTMModel(nn.Module):

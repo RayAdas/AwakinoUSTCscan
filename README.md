@@ -5,7 +5,7 @@
 
 AwakinoUSTCscan是一个集成化的超声波C扫描（C-Scan）系统，用于材料无损检测。该系统包含Qt编写的主控制程序和Python后处理脚本，能够实现自动化的三维扫描控制、数据采集、以及波形分析与可视化。
 
-![MainWindow](MainWindow.png)
+![MainWindow](doc/MainWindow.png)
 
 ## 模块
 

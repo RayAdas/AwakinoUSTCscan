@@ -4,7 +4,7 @@ from sklearn.metrics import classification_report
 import torch
 import CNN
 import os
-from utility import FileIO, EchoDataset
+from utils import FileIO, EchoDataset
 
 if __name__ == "__main__":
     fio = FileIO()

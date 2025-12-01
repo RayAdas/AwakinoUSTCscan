@@ -5,7 +5,7 @@ from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 from scipy.signal import butter, filtfilt, hilbert
-from utility import FileIO
+from utils import FileIO
 
 fio = FileIO()
 waveform_data = fio.get_waveform_data()

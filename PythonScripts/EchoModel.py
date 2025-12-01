@@ -6,7 +6,7 @@ from math import pi
 EchoInfo = namedtuple('EchoInfo', ['fc', 'tau', 'phi','alpha', 'beta', 'r', 'tanh_m'])
 
 echo_info_min = EchoInfo(2.3e6, 0, 0, 2e12, 0, -1, 16)
-echo_info_max = EchoInfo(2.7e6, 30e-6, 2*pi, 2e12, 10e-6, 1, 16)
+echo_info_max = EchoInfo(5e6, 30e-6, 2*pi, 2e12, 10e-6, 1, 16)
 echo_info_default = EchoInfo(2.5e6, 0, 0, 2e12, 1, 0, 16)
 
 def echo_function(

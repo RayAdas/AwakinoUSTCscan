@@ -1,5 +1,5 @@
 import CNN
-from utility import FileIO, EchoDataset
+from utils import FileIO, EchoDataset
 import torch
 from torch.utils.data import random_split
     

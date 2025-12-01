@@ -1,5 +1,5 @@
 import torch
-from utility import FileIO
+from utils import FileIO
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt

@@ -1,0 +1,3 @@
+[submodule "AwakinoUSTCscanMonitor"]
+	path = AwakinoUSTCscanMonitor
+	url = https://github.com/RayAdas/AwakinoUSTCscanMonitor.git

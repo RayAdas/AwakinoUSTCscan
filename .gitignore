@@ -1,25 +1,16 @@
-# 忽略所有内容
-*
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
 
-# 允许特定文件夹
-!AwakinoUSTCscan/
-!PythonScripts/
+# Virtual environments
+.venv
 
-# 允许文件夹中的所有子文件和子文件夹
-!AwakinoUSTCscan/**/*
-!PythonScripts/**/*
+# IDE files
+.vscode
 
-# 忽略build项目
-AwakinoUSTCscan/build/**/*
-AwakinoUSTCscan/CMakeLists.txt.user
-
-# 忽略AwakinoUSTCscan下的原始数据
-AwakinoUSTCscan/OSCget*_*.txt
-
-# 根目录下需要上传的东西
-!.gitignore
-!config.ini
-!requirements.txt
-!MainWindow.png
-
-*.pyc
+# 数据文件
+data/
