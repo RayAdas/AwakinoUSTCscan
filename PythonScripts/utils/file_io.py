@@ -10,7 +10,7 @@ class FileIO():
         self.config.read(config_path)
         py_data_path = self.config['DataSelect']['CurrentDataBase']
         self.algorithm = self.config['AlgorithmSelect']['CurrentAlgorithm']
-        py_data_path = os.path.join('.', 'NpWaveData', py_data_path)
+        py_data_path = os.path.join('.', 'data', 'NpWaveData', py_data_path)
         self.datapath = py_data_path
 
         self.config_metadata = configparser.ConfigParser()
