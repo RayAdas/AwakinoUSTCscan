@@ -6,6 +6,41 @@ import os
 import configparser
 import numpy as np
 
+
+class WaveformLoader:
+    """Strategy interface for loading waveform data."""
+
+    def load(self, file_path: str, signal_length: int) -> np.ndarray:
+        raise NotImplementedError
+
+    @staticmethod
+    def _normalize_waveform(data: np.ndarray, signal_length: int) -> np.ndarray:
+        data = data.flatten()
+        if len(data) < signal_length:
+            data = np.pad(data, (0, signal_length - len(data)), "constant")
+        else:
+            data = data[:signal_length]
+        return data
+
+
+class NpyWaveformLoader(WaveformLoader):
+    def load(self, file_path: str, signal_length: int) -> np.ndarray:
+        data = np.load(file_path)
+        return self._normalize_waveform(data, signal_length)
+
+
+class TxtWaveformLoader(WaveformLoader):
+    def load(self, file_path: str, signal_length: int) -> np.ndarray:
+        data = np.loadtxt(file_path, delimiter=",")
+        return self._normalize_waveform(data, signal_length)
+
+
+# Strategy mapping keyed by file extension.
+WAVEFORM_LOADER_REGISTRY = {
+    ".npy": NpyWaveformLoader(),
+    ".txt": TxtWaveformLoader(),
+}
+
 config_path = os.path.join('.', 'config.ini')
 config = configparser.ConfigParser()
 config.read(config_path)
@@ -30,63 +65,51 @@ grid_info = {
     'numY': int(config['Grid']['numY']),
 }
 
-signal_length = 1000
-# 检查[Wave][signalLength]是否存在，若存在则使用该值
+wave_info = {
+    'signal_length': 1000,
+    'sampleRate': 100e6,
+    'head2trigger': 0.0,
+}
+
+# 检查[Wave]参数是否存在，若存在则使用该值
 if 'Wave' in config and 'signalLength' in config['Wave']:
-    signal_length = int(float(config['Wave']['signalLength']))
+    wave_info['signal_length'] = int(float(config['Wave']['signalLength']))
+if 'Wave' in config and 'sampleRate' in config['Wave']:
+    wave_info['sampleRate'] = float(config['Wave']['sampleRate'])
+if 'Wave' in config and 'head2trigger' in config['Wave']:
+    wave_info['head2trigger'] = float(config['Wave']['head2trigger'])
 
 # 初始化存储波形数据的numpy数组
-waveform_data = np.zeros((grid_info['numY'], grid_info['numX'], signal_length), dtype=float)
+waveform_data = np.zeros((grid_info['numY'], grid_info['numX'], wave_info['signal_length']), dtype=float)
 
 # 遍历每条数据并读取波形数据
 for y in range(grid_info['numY']):
     section = str(y)
     if section in config:
         for x in range(grid_info['numX']):
+            signal_length = wave_info['signal_length']
             if str(x) not in config[section]:
                 waveform_data[y, x] = np.zeros(signal_length, dtype=float)
                 continue
             file_path = config[section][str(x)]
             file_path = os.path.join(src_data_path, file_path)
-            
-            if file_path.endswith('.npy'):
-                w = np.load(file_path)
-                w = w.flatten()
-                if len(w) < signal_length:
-                    w = np.pad(w, (0, signal_length - len(w)), 'constant')
-                else:
-                    w = w[:signal_length]
-                waveform_data[y, x] = w
-            elif file_path.endswith('.txt'):
-                # 使用 np.loadtxt 读取波形数据文件
-                w = np.loadtxt(file_path, delimiter=',')
-                w = w.flatten()
-                if len(w) < signal_length:
-                    w = np.pad(w, (0, signal_length - len(w)), 'constant')
-                else:
-                    w = w[:signal_length]
-                waveform_data[y, x] = w
+            extension = os.path.splitext(file_path)[1].lower()
+            loader = WAVEFORM_LOADER_REGISTRY.get(extension)
+            if loader is None:
+                waveform_data[y, x] = np.zeros(signal_length, dtype=float)
+                continue
+            try:
+                waveform_data[y, x] = loader.load(file_path, signal_length)
+            except (OSError, ValueError):
+                waveform_data[y, x] = np.zeros(signal_length, dtype=float)
 
 if not os.path.exists(py_data_path):
     os.makedirs(py_data_path)
-np.save(os.path.join(py_data_path, 'waveform_data.npy'), waveform_data)
 
-config_out = configparser.ConfigParser()
-config_out.add_section('Grid')
-config_out.set('Grid','minX',config['Grid']['minX'])
-config_out.set('Grid','minY',config['Grid']['minY'])
-config_out.set('Grid','maxX',config['Grid']['maxX'])
-config_out.set('Grid','maxY',config['Grid']['maxY'])
-config_out.set('Grid','numX',config['Grid']['numX'])
-config_out.set('Grid','numY',config['Grid']['numY'])
-
-config_out.add_section('Wave')
-if 'Wave' in config and 'signalLength' in config['Wave']:
-    config_out.set('Wave', 'signalLength', str(signal_length))
-if 'Wave' in config and 'sampleRate' in config['Wave']:
-    config_out.set('Wave', 'sampleRate', config['Wave']['sampleRate'])
-if 'Wave' in config and 'head2trigger' in config['Wave']:
-    config_out.set('Wave', 'head2trigger', config['Wave']['head2trigger'])
-
-with open(os.path.join(py_data_path, 'Metadata.ini'), 'w') as configfile:
-    config_out.write(configfile)
+# 保存数据为npz
+np.savez_compressed(
+    os.path.join(py_data_path, 'data.npz'),
+    waveform_data=waveform_data,
+    grid_info=grid_info,
+    wave_info=wave_info
+)
