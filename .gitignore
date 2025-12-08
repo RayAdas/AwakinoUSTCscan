@@ -15,4 +15,7 @@ wheels/
 # 数据文件
 data/
 
+# 模型文件
+models/
+
 config.ini
