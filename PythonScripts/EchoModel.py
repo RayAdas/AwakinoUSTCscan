@@ -5,9 +5,20 @@ from math import pi
 
 EchoInfo = namedtuple('EchoInfo', ['fc', 'beta', 'alpha', 'r', 'tau', 'psi', 'phi'])
 
-echo_info_min = EchoInfo(2.3e6, 0, 5e12, -1, 0, -10e12, 0)
-echo_info_max = EchoInfo(5e6, 0.1, 10e12, 1, 30e-6, 10e12, 2*pi)
-echo_info_default = EchoInfo(4.3e6, 0.05, 5e12, 0, 0, 0, 0)
+# Define min, max, and default parameter sets
+# tau min is set to 0, max should be set according to waveform length in usage
+echo_info_min = EchoInfo(4e6, 0, 5e12, -0.9, 0, -10e12, 0)
+echo_info_max = EchoInfo(5e6, 0.025, 10e12, 0.9, 0, 10e12, 2*pi)
+echo_info_default = EchoInfo(4.3e6, 0.025, 5e12, 0, 0, 0, 0)
+units = {
+    'fc': 'Hz',
+    'beta': 'Volt',
+    'alpha': '1/seconds^2',
+    'tau': 'seconds',
+    'r': 'unitless',
+    'psi': 'radians/seconds^2',
+    'phi': 'radians',
+}
 
 def echo_function(
     t: Union[float, int, np.ndarray, List[float]],
