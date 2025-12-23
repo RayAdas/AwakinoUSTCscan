@@ -96,8 +96,8 @@ class SingleWaveViewer:
         time_axis = np.arange(signal.shape[0]) / self.sample_rate_hz
 
         self.ax_time.clear()
-        self.ax_time.plot(time_axis * 1e6, signal)
-        self.ax_time.set_xlabel("时间 (µs)")
+        self.ax_time.plot(time_axis, signal)
+        self.ax_time.set_xlabel("时间 (s)")
         self.ax_time.set_ylabel("幅值")
         self.ax_time.set_title(f"原始波形 (x={x_idx}, y={y_idx})")
         self.ax_time.grid(alpha=0.3)
@@ -126,6 +126,28 @@ class SingleWaveViewer:
 
         freq_fig.show()
 
+        # 计算主峰频率
+        peak_idx = np.argmax(np.abs(fft_signal))
+        period = 1.0 / freqs[peak_idx] if freqs[peak_idx] != 0 else float('inf')
+        a = int(signal.shape[0] / (self.sample_rate_hz * period))  # 折叠后的波形数
+        n = int(self.sample_rate_hz * period)  # 主频周期对应的采样点数
+        # 将波形折叠到主频周期period上
+        folded_signals = [0.0 for _ in range(a)]
+        for i in range(a):
+            left = i * n
+            right = left + n 
+            folded_signals[i] = signal[left:right]
+
+        fold_fig = plt.figure(figsize=(6, 4), dpi=100)
+        ax_fold_popup = fold_fig.add_subplot(111)
+        ax_fold_popup.plot(time_axis[:n], np.array(folded_signals).T)
+        ax_fold_popup.plot(time_axis[:n], sum(folded_signals))
+        ax_fold_popup.set_xlabel("时间 (s)")
+        ax_fold_popup.set_ylabel("幅值")
+        ax_fold_popup.set_title("折叠波形 (弹出窗口)")
+        ax_fold_popup.grid(alpha=0.3)
+
+        fold_fig.show()
 
 if __name__ == "__main__":
     matplotlib.rcParams.update({
