@@ -33,38 +33,20 @@ class DeepImgDataset(Dataset):
         wave_len: int,
         depth_min: float,
         depth_max: float,
-        sigma: float
+        sigma: float,
+        batch_size: int = 32
     ) -> torch.Tensor:
+        """
+        Convert depth images to wave signals with batched processing to save memory.
+        
+        Args:
+            batch_size: Number of samples to process at once to control memory usage
+        """
         device = depth_imgs_tensor.device
         n, c, _ = depth_imgs_tensor.shape
 
         a = conv_kernel.shape[0] // 2
         b = receptive_field_size // 2
-
-        # --------------------------------------------------
-        # 1. 取 receptive_field_size x receptive_field_size 区域
-        # --------------------------------------------------
-        center_start = a
-        center_end = a + receptive_field_size
-        center_defects = depth_imgs_tensor[
-            :, center_start:center_end, center_start:center_end
-        ]  # (n, r, r)
-
-        # --------------------------------------------------
-        # 2. 提取每个中心点的 a 邻域 (unfold)
-        # --------------------------------------------------
-        patches = F.unfold(
-            depth_imgs_tensor.unsqueeze(1),   # (n,1,c,c)
-            kernel_size=2*a+1
-        )
-        # (n, (2a+1)^2, r*r)
-        patches = patches.transpose(1, 2)
-        patches = patches.reshape(
-            n,
-            receptive_field_size,
-            receptive_field_size,
-            (2*a+1)*(2*a+1)
-        )  # (n, r, r, k)
 
         # --------------------------------------------------
         # 3. 卷积核展平
@@ -79,31 +61,80 @@ class DeepImgDataset(Dataset):
         )  # (wave_len,)
 
         # --------------------------------------------------
-        # 5. 生成所有高斯波形（核心向量化）
+        # 分批处理以节省显存
         # --------------------------------------------------
-        # patches[..., None] -> (n, r, r, k, 1)
-        # wave_axis -> (1,1,1,1,wave_len)
-        gaussian = torch.exp(
-            -0.5 * ((wave_axis - patches[..., None]) / sigma) ** 2
-        )  # (n, r, r, k, wave_len)
+        wave_results = []
+        
+        for batch_start in range(0, n, batch_size):
+            batch_end = min(batch_start + batch_size, n)
+            batch_depth = depth_imgs_tensor[batch_start:batch_end]
+            batch_n = batch_end - batch_start
+            
+            # --------------------------------------------------
+            # 1. 取 receptive_field_size x receptive_field_size 区域
+            # --------------------------------------------------
+            center_start = a
+            center_end = a + receptive_field_size
+            center_defects = batch_depth[
+                :, center_start:center_end, center_start:center_end
+            ]  # (batch_n, r, r)
 
-        # --------------------------------------------------
-        # 6. 乘卷积核权重并求和
-        # --------------------------------------------------
-        wave = torch.einsum(
-            'nijkw,k->nijw',
-            gaussian,
-            kernel_flat
-        )
+            # --------------------------------------------------
+            # 2. 提取每个中心点的 a 邻域 (unfold)
+            # --------------------------------------------------
+            patches = F.unfold(
+                batch_depth.unsqueeze(1),   # (batch_n,1,c,c)
+                kernel_size=2*a+1
+            )
+            # (batch_n, (2a+1)^2, r*r)
+            patches = patches.transpose(1, 2)
+            patches = patches.reshape(
+                batch_n,
+                receptive_field_size,
+                receptive_field_size,
+                (2*a+1)*(2*a+1)
+            )  # (batch_n, r, r, k)
 
-        return wave # (n, r, r, wave_len)
+            # --------------------------------------------------
+            # 5. 生成所有高斯波形（核心向量化）
+            # --------------------------------------------------
+            # patches[..., None] -> (batch_n, r, r, k, 1)
+            # wave_axis -> (1,1,1,1,wave_len)
+            gaussian = torch.exp(
+                -0.5 * ((wave_axis - patches[..., None]) / sigma) ** 2
+            )  # (batch_n, r, r, k, wave_len)
+
+            # --------------------------------------------------
+            # 6. 乘卷积核权重并求和
+            # --------------------------------------------------
+            wave_batch = torch.einsum(
+                'nijkw,k->nijw',
+                gaussian,
+                kernel_flat
+            )  # (batch_n, r, r, wave_len)
+            
+            wave_results.append(wave_batch)
+            
+            # 清理中间变量
+            del patches, gaussian, wave_batch
+            if device.type == 'cuda':
+                torch.cuda.empty_cache()
+
+        # 合并所有批次的结果
+        wave = torch.cat(wave_results, dim=0)
+        return wave  # (n, r, r, wave_len)
 
     def __init__(self, receptive_field_size=41, 
                  sampling_interval=1e-3, 
                  conv_radius=5e-3, 
                  conv_kernel=None, 
                  n_samples=1000, 
-                 d_input=128):
+                 d_input=128,
+                 batch_size=32):
+        """
+        Args:
+            batch_size: Number of samples to process at once during wave generation (controls memory usage)
+        """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.sampling_interval = sampling_interval
         self.conv_radius = conv_radius
@@ -137,7 +168,8 @@ class DeepImgDataset(Dataset):
         deepth_imgs_tensor: torch.Tensor = torch.stack(deepth_imgs).to(self.device)  # (n_samples, c, c)
         self.tgt = deepth_imgs_tensor[:, a:-a, a:-a]  # (n_samples, receptive_field_size, receptive_field_size)
 
-        # 生成深度序列
+        # 生成深度序列（分批处理以节省显存）
+        print(f"Generating wave data in batches of {batch_size}...")
         self.input = self.defects_to_waves(
             deepth_imgs_tensor,
             conv_kernel,
@@ -145,7 +177,8 @@ class DeepImgDataset(Dataset):
             wave_len=d_input,
             depth_min=0.0,
             depth_max=0.01,
-            sigma=1e-4
+            sigma=1e-4,
+            batch_size=batch_size
         )
 
     def __len__(self):
