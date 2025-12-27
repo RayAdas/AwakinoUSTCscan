@@ -26,7 +26,10 @@ if __name__ == "__main__":
     
     # Show a few wave of the input wave
     plt.figure(figsize=(6, 6))
-    plt.plot(input_wave[ input_wave.shape[0]//2, input_wave.shape[1]//2, :].cpu().numpy())
+    center_wave = input_wave[input_wave.shape[0]//2, input_wave.shape[1]//2, :].cpu().numpy()
+    plt.plot(center_wave)
+    integration = sum(center_wave)
+    plt.title(f'Input Wave at Center Position {integration:.2f}')
 
     # Show target depth in a separate figure
     plt.figure(figsize=(6, 6))

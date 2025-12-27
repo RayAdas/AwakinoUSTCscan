@@ -7,6 +7,8 @@ from rebuild.dataset import DeepImgDataset
 from rebuild.strategies import UNetStrategy
 
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
 
 
 def train_unet():
@@ -151,8 +153,8 @@ def visualize_results(strategy, test_dataset, device, history):
     axes[1].axis('off')
     plt.colorbar(im1, ax=axes[1])
     
-    # Show more predictions
-    fig2, axes2 = plt.subplots(2, 3, figsize=(15, 10))
+    # Show more predictions in 3D surface plots
+    fig2 = plt.figure(figsize=(18, 12))
     
     for i in range(3):
         sample = test_dataset[i]
@@ -165,17 +167,37 @@ def visualize_results(strategy, test_dataset, device, history):
         vmin = min(depth_target.min(), depth_pred.min())
         vmax = max(depth_target.max(), depth_pred.max())
         
-        # Target
-        im_target = axes2[0, i].imshow(depth_target, cmap='viridis', vmin=vmin, vmax=vmax)
-        axes2[0, i].set_title(f"Sample {i+1}: Ground Truth")
-        axes2[0, i].axis('off')
-        plt.colorbar(im_target, ax=axes2[0, i], fraction=0.046)
+        # Create meshgrid for 3D plotting
+        h, w = depth_target.shape
+        x = np.arange(0, w, 1)
+        y = np.arange(0, h, 1)
+        X, Y = np.meshgrid(x, y)
         
-        # Prediction
-        im_pred = axes2[1, i].imshow(depth_pred, cmap='viridis', vmin=vmin, vmax=vmax)
-        axes2[1, i].set_title(f"Sample {i+1}: Prediction")
-        axes2[1, i].axis('off')
-        plt.colorbar(im_pred, ax=axes2[1, i], fraction=0.046)
+        # Target - 3D surface
+        ax_target = fig2.add_subplot(2, 3, i+1, projection='3d')
+        surf_target = ax_target.plot_surface(X, Y, depth_target, cmap='viridis', 
+                                             vmin=vmin, vmax=vmax, 
+                                             edgecolor='none', alpha=0.9,
+                                             rstride=1, cstride=1)
+        ax_target.set_title(f"Sample {i+1}: Ground Truth")
+        ax_target.set_xlabel('X')
+        ax_target.set_ylabel('Y')
+        ax_target.set_zlabel('Depth')
+        ax_target.view_init(elev=30, azim=45)
+        fig2.colorbar(surf_target, ax=ax_target, shrink=0.5, aspect=5)
+        
+        # Prediction - 3D surface
+        ax_pred = fig2.add_subplot(2, 3, i+4, projection='3d')
+        surf_pred = ax_pred.plot_surface(X, Y, depth_pred, cmap='viridis', 
+                                         vmin=vmin, vmax=vmax, 
+                                         edgecolor='none', alpha=0.9,
+                                         rstride=1, cstride=1)
+        ax_pred.set_title(f"Sample {i+1}: Prediction")
+        ax_pred.set_xlabel('X')
+        ax_pred.set_ylabel('Y')
+        ax_pred.set_zlabel('Depth')
+        ax_pred.view_init(elev=30, azim=45)
+        fig2.colorbar(surf_pred, ax=ax_pred, shrink=0.5, aspect=5)
     
     plt.tight_layout()
     plt.show()

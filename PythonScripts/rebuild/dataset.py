@@ -67,26 +67,15 @@ class DeepImgDataset(Dataset):
         
         for batch_start in range(0, n, batch_size):
             batch_end = min(batch_start + batch_size, n)
-            batch_depth = depth_imgs_tensor[batch_start:batch_end]
             batch_n = batch_end - batch_start
-            
-            # --------------------------------------------------
-            # 1. 取 receptive_field_size x receptive_field_size 区域
-            # --------------------------------------------------
-            center_start = a
-            center_end = a + receptive_field_size
-            center_defects = batch_depth[
-                :, center_start:center_end, center_start:center_end
-            ]  # (batch_n, r, r)
+            batch_depth = depth_imgs_tensor[batch_start:batch_end] # (batch_n, c, c)
 
-            # --------------------------------------------------
-            # 2. 提取每个中心点的 a 邻域 (unfold)
-            # --------------------------------------------------
+            # 提取每个中心点的 a 邻域 (unfold)
             patches = F.unfold(
                 batch_depth.unsqueeze(1),   # (batch_n,1,c,c)
                 kernel_size=2*a+1
-            )
-            # (batch_n, (2a+1)^2, r*r)
+            ) # (batch_n, k, r*r)
+
             patches = patches.transpose(1, 2)
             patches = patches.reshape(
                 batch_n,
@@ -175,8 +164,8 @@ class DeepImgDataset(Dataset):
             conv_kernel,
             receptive_field_size,
             wave_len=d_input,
-            depth_min=0.0,
-            depth_max=0.01,
+            depth_min=-0.02,
+            depth_max=0.012,
             sigma=1e-4,
             batch_size=batch_size
         )

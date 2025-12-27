@@ -8,7 +8,7 @@ class CircleDefectType(BaseDefectType):
 
     def __init__(self) -> None:
         super().__init__()
-        self.radius = ClampedValue(0.001, 0.01)
+        self.radius = ClampedValue(0.003, 0.01)
         self.depth = ClampedValue(0.001, 0.01)
 
     def get_depth(self, x:Tensor, y:Tensor) -> Tensor:
