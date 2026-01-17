@@ -192,6 +192,7 @@ class DepthTrainer:
         """
         self.model.eval()
         
+        wave_data = wave_data.to(self.device)
         # Handle different input shapes
         original_shape = wave_data.shape
         if wave_data.dim() == 3:
