@@ -1,46 +1,61 @@
+from abc import ABC
 import configparser
 import os
-import numpy as np
+from typing import Optional
 
-class FileIO():
-    def __init__(self):
+class FileIO(ABC):
+    config_path = ""
+    CS_data_path = ""
+    curr_CS_data_path: Optional[str] = None
+    curr_CS_metadata: Optional[configparser.ConfigParser] = None
+    config: configparser.ConfigParser = configparser.ConfigParser()
+
+    rebuild_dataset_path = ""
+    curr_rebuild_dataset_path: Optional[str] = None
+    curr_rebuild_dataset_metadata: Optional[configparser.ConfigParser] = None
+
+    @classmethod
+    def init(cls):
         # Load configuration and data
-        config_path = os.path.join('.', 'config.ini')
-        self.config = configparser.ConfigParser()
-        self.config.read(config_path)
-        py_data_path = self.config['DataSelect']['CurrentDataBase']
-        self.algorithm = self.config['AlgorithmSelect']['CurrentAlgorithm']
-        py_data_path = os.path.join('.', 'data', 'NpWaveData', py_data_path)
-        self.datapath = py_data_path
+        cls.config_path = os.path.join('.', 'config.ini')
+        cls.CS_data_path = os.path.join('.', 'data', 'NpWaveData')
+        cls.rebuild_dataset_path = os.path.join('.', 'data', 'RebuildDatasets')
+        cls.config.read(cls.config_path)
 
-        self.config_metadata = configparser.ConfigParser()
-        self.config_metadata.read(os.path.join(py_data_path, 'Metadata.ini'))
-        self.sample_rate_hz = self._load_sample_rate_hz()
-        self.waveform_data = np.load(os.path.join(py_data_path, 'waveform_data.npy'))
-
-    def join_datapath(self, path):
-        return os.path.join(self.datapath, path)
-
-    def _load_sample_rate_hz(self, default_hz=50e6):
+        # !!! DEPRECATED
         try:
-            return self.config_metadata.getfloat('Waveform', 'SampleRateHz')
-        except (configparser.NoSectionError, configparser.NoOptionError, ValueError):
-            return default_hz
+            cls.algorithm = cls.config['AlgorithmSelect']['CurrentAlgorithm']
+        except KeyError:
+            cls.algorithm = None
 
-    def get_metadata(self):
-        grid_info = {
-            'minX': int(self.config_metadata['Grid']['minX']),
-            'minY': int(self.config_metadata['Grid']['minY']),
-            'maxX': int(self.config_metadata['Grid']['maxX']),
-            'maxY': int(self.config_metadata['Grid']['maxY']),
-            'numX': int(self.config_metadata['Grid']['numX']),
-            'numY': int(self.config_metadata['Grid']['numY']),
-            'sampleRateHz': self.sample_rate_hz,
-        }
-        return grid_info
-    
-    def get_sample_rate_hz(self):
-        return self.sample_rate_hz
+        # Data paths, current data path and metadata path
+        try:
+            db_name = cls.config['DataSelect']['CurrentDataBase']
+        except KeyError:
+            cls.curr_CS_data_path = None
+            cls.curr_CS_metadata = None
+            print("Warning: No current database selected in configuration.")
+        else:
+            cls.curr_CS_data_path = os.path.join(cls.CS_data_path, db_name)
+            metadata_path = os.path.join(cls.curr_CS_data_path, 'Metadata.ini')
 
-    def get_waveform_data(self):
-        return self.waveform_data
+            cls.curr_CS_metadata = configparser.ConfigParser()
+            if not cls.curr_CS_metadata.read(metadata_path):
+                cls.curr_CS_metadata = None
+                print("Warning: Metadata.ini not found in the current database path.")
+
+        # rebuild dataset
+        try:
+            rebuild_dataset_name = cls.config['DataSelect']['CurrentRebuildDataset']
+        except KeyError:
+            cls.curr_rebuild_dataset_path = None
+            cls.curr_rebuild_dataset_metadata = None
+            print("Warning: No current rebuild dataset selected in configuration.")
+        else:
+            cls.curr_rebuild_dataset_path = os.path.join(cls.rebuild_dataset_path, rebuild_dataset_name)
+            rebuild_metadata_path = os.path.join(cls.curr_rebuild_dataset_path, 'Metadata.ini')
+
+            cls.curr_rebuild_dataset_metadata = configparser.ConfigParser()
+            if not cls.curr_rebuild_dataset_metadata.read(rebuild_metadata_path):
+                cls.curr_rebuild_dataset_metadata = None
+                print("Warning: Metadata.ini not found in the current rebuild dataset path.")
