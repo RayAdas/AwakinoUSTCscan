@@ -5,7 +5,7 @@ import torch
 from rebuild.dataset import DeepImgDataset
 
 from utils.file_io import FileIO
-N_SAMPLES = 1000
+N_SAMPLES = 16
 ENABLE_VISUALIZATION = True
 
 if __name__ == "__main__":
@@ -42,17 +42,3 @@ if __name__ == "__main__":
             ax.imshow(input_wave[:, :, wave_idx].cpu().numpy())
             ax.set_title(f"Wave slice {wave_idx}")
             ax.axis('off')
-        
-        # Show a few wave of the input wave
-        plt.figure(figsize=(6, 6))
-        center_wave = input_wave[input_wave.shape[0]//2, input_wave.shape[1]//2, :].cpu().numpy()
-        plt.plot(center_wave)
-        integration = sum(center_wave)
-        plt.title(f'Input Wave at Center Position {integration:.2f}')
-
-        # Show target depth in a separate figure
-        plt.figure(figsize=(6, 6))
-        plt.imshow(target_depth.cpu().numpy())
-        plt.colorbar(label='Depth')
-        plt.title('Target Depth')
-        plt.show()

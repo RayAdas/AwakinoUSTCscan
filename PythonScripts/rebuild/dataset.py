@@ -7,8 +7,26 @@ import torch.nn.functional as F
 from .defect_types import TYPE_REGISTRY, BaseDefectType
 
 class DeepImgDataset(Dataset):
+    DEPTH_MIN = -0.002
+    DEPTH_MAX = 0.012
+    WAVE_LEN = 128
+    SIGMA = 1e-4
+
     @classmethod
-    def build_conv_core(cls, radius: float, interval: float, sigma: float = 1.0) -> torch.Tensor:
+    def real_depth2wave_pos(cls, depth: torch.Tensor) -> torch.Tensor:
+        """Convert real-world depth (in meters) to wave position (in time bins)."""
+        # 线性插值
+        pos = (depth - cls.DEPTH_MIN) / (cls.DEPTH_MAX - cls.DEPTH_MIN) * (cls.WAVE_LEN - 1)
+        return pos  # (...,)
+    
+    @classmethod
+    def wave_pos2real_depth(cls, pos: torch.Tensor) -> torch.Tensor:
+        """Convert wave position (in time bins) to real-world depth (in meters)."""
+        depth = pos / (cls.WAVE_LEN - 1) * (cls.DEPTH_MAX - cls.DEPTH_MIN) + cls.DEPTH_MIN
+        return depth  # (...,)
+
+    @classmethod
+    def build_conv_core(cls, radius: float, interval: float, sigma: float = SIGMA) -> torch.Tensor:
         """Build a 2D Gaussian convolution core."""
         size = int(2 * radius / interval)
         if size % 2 == 0:
@@ -32,10 +50,7 @@ class DeepImgDataset(Dataset):
         depth_imgs_tensor: torch.Tensor,        # (n, c, c)
         conv_kernel: torch.Tensor,            # (2a+1, 2a+1)
         receptive_field_size: int,   # 2b+1
-        wave_len: int,
-        depth_min: float,
-        depth_max: float,
-        sigma: float,
+        sigma: float = SIGMA,
         batch_size: int = 32
     ) -> torch.Tensor:
         """
@@ -55,7 +70,7 @@ class DeepImgDataset(Dataset):
 
         # 构造 wave 深度轴
         wave_axis = torch.linspace(
-            depth_min, depth_max, wave_len, device=device
+            cls.DEPTH_MIN, cls.DEPTH_MAX, cls.WAVE_LEN, device=device
         )  # (wave_len,)
 
         # 分批处理以节省内存/显存
@@ -109,7 +124,6 @@ class DeepImgDataset(Dataset):
                  conv_radius=5e-3, 
                  conv_kernel=None, 
                  n_samples=1000, 
-                 d_input=128,
                  batch_size=32,
                  device: Optional[torch.device] = None):
         """
@@ -149,16 +163,12 @@ class DeepImgDataset(Dataset):
         self.n_samples = len(depth_imgs)
         depth_imgs_tensor: torch.Tensor = torch.stack(depth_imgs).to(self.device)  # (n_samples, c, c)
         self.tgt = depth_imgs_tensor[:, a:-a, a:-a]  # (n_samples, receptive_field_size, receptive_field_size)
-        # 生成深度序列（分批处理以节省内存/显存）
+        # 生成深度序列
         print(f"Generating wave data in batches of {batch_size}...")
         self.input = self.defects_to_waves(
             depth_imgs_tensor,
             conv_kernel,
             receptive_field_size,
-            wave_len=d_input,
-            depth_min=-0.02,
-            depth_max=0.012,
-            sigma=1e-4,
             batch_size=batch_size)
 
         self.input = self.input.to('cpu')

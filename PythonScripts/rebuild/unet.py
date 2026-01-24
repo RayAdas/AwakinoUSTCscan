@@ -1,20 +1,4 @@
 import torch
-
-def build_gaussian_heatmap(r, wave_len, sigma):
-    """
-    r: (B, H, W)       depth / ToF index (float or int)
-    return: (B, H, W, T)
-    """
-    device = r.device
-    B, H, W = r.shape
-
-    t = torch.arange(wave_len, device=device).view(1, 1, 1, wave_len)
-    r = r.unsqueeze(-1)  # (B,H,W,1)
-
-    heatmap = torch.exp(-0.5 * ((t - r) / sigma) ** 2)
-    return heatmap
-
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -94,6 +78,3 @@ class UNet3D(nn.Module):
 
         x = self.out_conv(x)
         return x
-
-def heatmap_loss(pred, target):
-    return F.mse_loss(pred, target)

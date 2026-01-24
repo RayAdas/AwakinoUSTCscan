@@ -14,12 +14,16 @@ class FileIO(ABC):
     curr_rebuild_dataset_path: Optional[str] = None
     curr_rebuild_dataset_metadata: Optional[configparser.ConfigParser] = None
 
+    models_path = ""
+    rebuild_model_path: Optional[str] = None
+
     @classmethod
     def init(cls):
         # Load configuration and data
         cls.config_path = os.path.join('.', 'config.ini')
         cls.CS_data_path = os.path.join('.', 'data', 'NpWaveData')
         cls.rebuild_dataset_path = os.path.join('.', 'data', 'RebuildDatasets')
+        cls.models_path = os.path.join('.', 'models')
         cls.config.read(cls.config_path)
 
         # !!! DEPRECATED
@@ -59,3 +63,12 @@ class FileIO(ABC):
             if not cls.curr_rebuild_dataset_metadata.read(rebuild_metadata_path):
                 cls.curr_rebuild_dataset_metadata = None
                 print("Warning: Metadata.ini not found in the current rebuild dataset path.")
+
+        # rebuild model
+        try:
+            rebuild_model_name = cls.config['ModelSelect']['CurrentRebuildModel']
+        except KeyError:
+            cls.rebuild_model_path = None
+            print("Warning: No current rebuild model selected in configuration.")
+        else:
+            cls.rebuild_model_path = os.path.join(cls.models_path, rebuild_model_name)
