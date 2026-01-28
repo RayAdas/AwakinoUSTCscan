@@ -53,7 +53,7 @@ def train_one_epoch(model:torch.nn.Module, loader, optimizer:torch.optim.Optimiz
             r,
             TGT_KERNEL,
             receptive_field_size=r.shape[1],
-            sigma=DeepImgDataset.SIGMA*3,
+            sigma=DeepImgDataset.SIGMA,
         ).unsqueeze(1)                     # (B,1,H,W,T)
 
         optimizer.zero_grad()
@@ -83,7 +83,7 @@ def validate(model, loader):
             r,
             TGT_KERNEL,
             receptive_field_size=r.shape[1],
-            sigma=DeepImgDataset.SIGMA*3,
+            sigma=DeepImgDataset.SIGMA,
         ).unsqueeze(1)                     # (B,1,H,W,T)
 
         pred = model(x)

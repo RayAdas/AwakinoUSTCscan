@@ -10,7 +10,7 @@ class DeepImgDataset(Dataset):
     DEPTH_MIN = -0.002
     DEPTH_MAX = 0.012
     WAVE_LEN = 128
-    SIGMA = 1e-4
+    SIGMA = 3e-4
 
     @classmethod
     def real_depth2wave_pos(cls, depth: torch.Tensor) -> torch.Tensor:
