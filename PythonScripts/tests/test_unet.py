@@ -77,24 +77,22 @@ def evaluate(model, loader):
 def visualize_samples(model, dataset, device):
 	"""Visualize sample predictions: 2D maps and 3D surfaces."""
 	# Show one 2D comparison
+	fig1 = plt.figure(figsize=(12, 6))
 	sample = dataset[0]
 	wave_input = sample["input"].unsqueeze(0).to(device)  # (1,H,W,T)
 	r_target = sample["target"].cpu().numpy()
 	r_pred = predict_depth(model, wave_input).squeeze(0).cpu().numpy()
-
-	vmin = float(min(r_target.min(), r_pred.min()))
-	vmax = float(max(r_target.max(), r_pred.max()))
-
-	fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-	im0 = axes[0].imshow(r_target, cmap='viridis', vmin=vmin, vmax=vmax)
-	axes[0].set_title(f"Ground Truth (max: {r_target.max():.2f})")
-	axes[0].axis('off')
-	plt.colorbar(im0, ax=axes[0])
-
-	im1 = axes[1].imshow(r_pred, cmap='viridis', vmin=vmin, vmax=vmax)
-	axes[1].set_title(f"Prediction (max: {r_pred.max():.2f})")
-	axes[1].axis('off')
-	plt.colorbar(im1, ax=axes[1])
+	fig1.add_subplot(1, 2, 1)
+	im0 = plt.imshow(r_target, cmap='viridis')
+	plt.title(f"Ground Truth (max: {r_target.max():.2f})")
+	plt.axis('off')
+	plt.colorbar(im0, ax=plt.gca())
+	fig1.add_subplot(1, 2, 2)
+	im1 = plt.imshow(r_pred, cmap='viridis')
+	plt.title(f"Prediction (max: {r_pred.max():.2f})")
+	plt.axis('off')
+	plt.colorbar(im1, ax=plt.gca())
+	plt.tight_layout()
 
 	# Show 3D surfaces for first 3 samples
 	fig2 = plt.figure(figsize=(18, 12))

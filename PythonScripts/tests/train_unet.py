@@ -16,7 +16,7 @@ from rebuild.unet import UNet3D
 # ======================
 BATCH_SIZE = 4
 NUM_EPOCHS = 200
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 5e-4
 WEIGHT_DECAY = 1e-5
 
 VAL_RATIO = 0.1
