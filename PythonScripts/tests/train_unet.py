@@ -30,7 +30,7 @@ def heatmap_loss(pred, target):
     # 简单的加权 MSE
     # 给予 target > 0 的区域更高的权重 (例如 100 倍)
     weight = torch.ones_like(target)
-    weight[target > 0.01] = 100.0  # 前景权重
+    weight[target > 0.001] = 100.0  # 前景权重
     
     loss = F.mse_loss(pred, target, reduction='none')
     loss = loss * weight

@@ -46,65 +46,64 @@ def predict_depth(wave_input):
 		# 防止sigma过小
 		sigma.data.clamp_(min=1e-4)
 
-	return tau.detach().squeeze(-1)
+	return DeepImgDataset.wave_pos2real_depth(tau).detach().squeeze(-1)
 
 def visualize_samples(dataset, device):
-	"""Visualize sample predictions: 2D maps and 3D surfaces."""
-	# Show one 2D comparison
-	sample = dataset[0]
-	wave_input = sample["input"].unsqueeze(0).to(device)  # (1,H,W,T)
-	r_target = sample["target"].cpu().numpy()
-	r_pred = predict_depth(wave_input).squeeze(0).cpu().numpy()
+	"""Visualize samples one-by-one: 2D/3D GT and prediction per window."""
+	for i in range(len(dataset)):
+		sample = dataset[i]
+		wave_input = sample["input"].unsqueeze(0).to(device)  # (1,H,W,T)
+		r_target = sample["target"].cpu().numpy()
+		r_pred = predict_depth(wave_input).squeeze(0).cpu().numpy()
 
-	vmin = float(min(r_target.min(), r_pred.min()))
-	vmax = float(max(r_target.max(), r_pred.max()))
+		vmin = float(min(r_target.min(), r_pred.min()))
+		vmax = float(max(r_target.max(), r_pred.max()))
 
-	fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-	im0 = axes[0].imshow(r_target, cmap='viridis', vmin=vmin, vmax=vmax)
-	axes[0].set_title(f"Ground Truth (max: {r_target.max():.2f})")
-	axes[0].axis('off')
-	plt.colorbar(im0, ax=axes[0])
-
-	im1 = axes[1].imshow(r_pred, cmap='viridis', vmin=vmin, vmax=vmax)
-	axes[1].set_title(f"Prediction (max: {r_pred.max():.2f})")
-	axes[1].axis('off')
-	plt.colorbar(im1, ax=axes[1])
-
-	# Show 3D surfaces for first 3 samples
-	fig2 = plt.figure(figsize=(18, 12))
-	for i in range(3):
-		sample_i = dataset[i]
-		wave_i = sample_i["input"].unsqueeze(0).to(device)
-		r_t = sample_i["target"].cpu().numpy()
-		r_p = predict_depth(wave_i).squeeze(0).cpu().numpy()
-
-		h, w = r_t.shape
+		h, w = r_target.shape
 		x = np.arange(0, w, 1)
 		y = np.arange(0, h, 1)
 		X, Y = np.meshgrid(x, y)
 
-		ax_t = fig2.add_subplot(2, 3, i+1, projection='3d')
-		surf_t = ax_t.plot_surface(X, Y, r_t, cmap='viridis',
-								   edgecolor='none', alpha=0.9, rstride=1, cstride=1)
-		ax_t.set_title(f"Sample {i+1}: Ground Truth")
-		ax_t.set_xlabel('X')
-		ax_t.set_ylabel('Y')
-		ax_t.set_zlabel('Index')
-		ax_t.view_init(elev=30, azim=45)
-		fig2.colorbar(surf_t, ax=ax_t, shrink=0.5, aspect=5)
+		fig = plt.figure(figsize=(16, 12))
+		fig.suptitle(f"Sample {i+1}/{len(dataset)}", fontsize=14)
 
-		ax_p = fig2.add_subplot(2, 3, i+4, projection='3d')
-		surf_p = ax_p.plot_surface(X, Y, r_p, cmap='viridis',
-								   edgecolor='none', alpha=0.9, rstride=1, cstride=1)
-		ax_p.set_title(f"Sample {i+1}: Prediction")
-		ax_p.set_xlabel('X')
-		ax_p.set_ylabel('Y')
-		ax_p.set_zlabel('Index')
-		ax_p.view_init(elev=30, azim=45)
-		fig2.colorbar(surf_p, ax=ax_p, shrink=0.5, aspect=5)
+		ax_2d_t = fig.add_subplot(2, 2, 1)
+		im_t = ax_2d_t.imshow(r_target, cmap='viridis', vmin=vmin, vmax=vmax)
+		ax_2d_t.set_title(f"2D Ground Truth (max: {r_target.max():.2f})")
+		ax_2d_t.axis('off')
+		fig.colorbar(im_t, ax=ax_2d_t, shrink=0.8)
 
-	plt.tight_layout()
-	plt.show()
+		ax_2d_p = fig.add_subplot(2, 2, 2)
+		im_p = ax_2d_p.imshow(r_pred, cmap='viridis', vmin=vmin, vmax=vmax)
+		ax_2d_p.set_title(f"2D Prediction (max: {r_pred.max():.2f})")
+		ax_2d_p.axis('off')
+		fig.colorbar(im_p, ax=ax_2d_p, shrink=0.8)
+
+		ax_3d_t = fig.add_subplot(2, 2, 3, projection='3d')
+		surf_t = ax_3d_t.plot_surface(
+			X, Y, r_target, cmap='viridis', edgecolor='none', alpha=0.9, rstride=1, cstride=1
+		)
+		ax_3d_t.set_title("3D Ground Truth")
+		ax_3d_t.set_xlabel('X')
+		ax_3d_t.set_ylabel('Y')
+		ax_3d_t.set_zlabel('Index')
+		ax_3d_t.view_init(elev=30, azim=45)
+		fig.colorbar(surf_t, ax=ax_3d_t, shrink=0.6, aspect=8)
+
+		ax_3d_p = fig.add_subplot(2, 2, 4, projection='3d')
+		surf_p = ax_3d_p.plot_surface(
+			X, Y, r_pred, cmap='viridis', edgecolor='none', alpha=0.9, rstride=1, cstride=1
+		)
+		ax_3d_p.set_title("3D Prediction")
+		ax_3d_p.set_xlabel('X')
+		ax_3d_p.set_ylabel('Y')
+		ax_3d_p.set_zlabel('Index')
+		ax_3d_p.view_init(elev=30, azim=45)
+		fig.colorbar(surf_p, ax=ax_3d_p, shrink=0.6, aspect=8)
+
+		plt.tight_layout()
+		plt.show(block=True)
+		plt.close(fig)
 
 
 def main():

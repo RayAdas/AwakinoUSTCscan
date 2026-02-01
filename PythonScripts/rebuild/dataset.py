@@ -11,6 +11,7 @@ class DeepImgDataset(Dataset):
     DEPTH_MAX = 0.012
     WAVE_LEN = 128
     SIGMA = 3e-4
+    SIGMA_2D = 1e-3
 
     @classmethod
     def real_depth2wave_pos(cls, depth: torch.Tensor) -> torch.Tensor:
@@ -26,18 +27,25 @@ class DeepImgDataset(Dataset):
         return depth  # (...,)
 
     @classmethod
-    def build_conv_core(cls, radius: float, interval: float, sigma: float = SIGMA) -> torch.Tensor:
-        """Build a 2D Gaussian convolution core."""
+    def build_conv_kernel(cls, radius: float, interval: float, sigma: float = SIGMA_2D) -> torch.Tensor:
+        """Build a 2D Gaussian convolution kernel."""
+        if sigma is None:
+            sigma = radius / 3  # 3σ 落在 radius 处
+        
         size = int(2 * radius / interval)
         if size % 2 == 0:
             size -= 1  # Ensure size is odd
         
-        # 创建坐标网格
+        # 创建坐标网格（网格坐标）
         ax = torch.linspace(-(size - 1) / 2., (size - 1) / 2., size)
         xx, yy = torch.meshgrid(ax, ax, indexing='ij')
         
-        # 计算高斯函数
-        kernel = torch.exp(-(xx**2 + yy**2) / (2 * sigma**2))
+        # 将网格坐标转换为物理坐标（乘以间隔）
+        xx_physical = xx * interval
+        yy_physical = yy * interval
+        
+        # 使用物理距离计算高斯函数
+        kernel = torch.exp(-(xx_physical**2 + yy_physical**2) / (2 * sigma**2))
         
         # 归一化
         kernel = kernel / torch.sum(kernel)
@@ -134,7 +142,7 @@ class DeepImgDataset(Dataset):
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.sampling_interval = sampling_interval
         self.conv_radius = conv_radius
-        conv_kernel = conv_kernel if conv_kernel is not None else self.build_conv_core(
+        conv_kernel = conv_kernel if conv_kernel is not None else self.build_conv_kernel(
             radius=conv_radius,
             interval=sampling_interval,
         ).to(self.device)

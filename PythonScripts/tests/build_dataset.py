@@ -42,3 +42,6 @@ if __name__ == "__main__":
             ax.imshow(input_wave[:, :, wave_idx].cpu().numpy())
             ax.set_title(f"Wave slice {wave_idx}")
             ax.axis('off')
+
+        plt.tight_layout()
+        plt.show()
