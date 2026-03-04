@@ -28,12 +28,15 @@ TGT_KERNEL = torch.ones((1,1))
 
 def heatmap_loss(pred, target):
     # 简单的加权 MSE
-    # 给予 target > 0 的区域更高的权重 (例如 100 倍)
-    weight = torch.ones_like(target)
-    weight[target > 0.001] = 100.0  # 前景权重
-    
+    center_weight = 5.0
+    weight_map = torch.ones_like(target) # (B, 1, H, W, T)
+    B, _, H, W, T = target.shape
+
+    c_h, c_w = H // 2, W // 2
+    weight_map[:, :, c_h-2:c_h+3, c_w-2:c_w+3, :] = center_weight
+
     loss = F.mse_loss(pred, target, reduction='none')
-    loss = loss * weight
+    loss = loss * weight_map
     return loss.mean()
 
 # ======================
