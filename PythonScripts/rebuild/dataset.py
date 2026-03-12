@@ -181,6 +181,7 @@ class DeepImgDataset(Dataset):
 
         self.input = self.input.to('cpu')
         self.tgt = self.tgt.to('cpu')
+        self.defects_meta = defects_meta
 
     def __len__(self):
         return self.n_samples

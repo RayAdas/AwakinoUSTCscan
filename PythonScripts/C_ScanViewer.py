@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import configparser
 import tkinter as tk
@@ -7,8 +9,8 @@ import matplotlib.pyplot as plt
 from scipy.signal import butter, filtfilt, hilbert
 from utils import FileIO
 
-fio = FileIO()
-waveform_data = fio.get_waveform_data()
+FileIO.init()  # 初始化文件路径和配置
+waveform_data = np.load(os.path.join(FileIO.curr_CS_data_path, 'waveform_data.npy'))
 waveform_data = waveform_data - np.mean(waveform_data) # 去除直流分量
 
 # 创建主窗口
@@ -61,7 +63,7 @@ class WaveformViewer:
         waveform = self.data[idx[1], idx[0], :]
         self.waveform_line.set_data(range(waveform.shape[0]), waveform)
 
-        filtered_waveform = self.apply_lowpass_filter(waveform, cutoff=60)
+        filtered_waveform = self.apply_lowpass_filter(waveform, cutoff=100)
 
         # 计算包络线
         envelope = np.abs(hilbert(filtered_waveform))

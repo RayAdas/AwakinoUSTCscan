@@ -9,8 +9,8 @@ class BaseDefectType(ABC):
     def __init__(self) -> None:
         super().__init__()
         self.rotation_angle = ClampedValue(0.0, 360.0)
-        self.offset_x = ClampedValue(0, 0)
-        self.offset_y = ClampedValue(0, 0)
+        self.offset_x = ClampedValue(-0.006, 0.006)
+        self.offset_y = ClampedValue(-0.006, 0.006)
 
     @abstractmethod
     def get_depth(self, x:Tensor, y:Tensor) -> Tensor:

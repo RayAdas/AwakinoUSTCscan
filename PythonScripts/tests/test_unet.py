@@ -77,6 +77,7 @@ class VisualizationApp:
         print("加载数据集...")
         self.dataset = load_dataset()
         print("数据集加载完成")
+        self.defects_meta = getattr(self.dataset, "defects_meta", None)
         
         # 创建数据加载器
         self.dataloader = DataLoader(
@@ -206,10 +207,30 @@ class VisualizationApp:
         # 帧信息标签
         self.frame_label = ttk.Label(control_frame, text="")
         self.frame_label.pack(side=tk.RIGHT, padx=20, pady=5)
+
+        # 缺陷类型标签
+        self.defect_label = ttk.Label(control_frame, text="Defect: N/A")
+        self.defect_label.pack(side=tk.RIGHT, padx=20, pady=5)
+
+        # 帧号跳转输入
+        jump_frame = ttk.Frame(control_subframe)
+        jump_frame.pack(side=tk.LEFT, padx=10, pady=5)
+        ttk.Label(jump_frame, text="跳转帧:").pack(side=tk.LEFT, padx=(0, 5))
+        self.frame_entry = ttk.Entry(jump_frame, width=10)
+        self.frame_entry.insert(0, str(self.current_idx))
+        self.frame_entry.pack(side=tk.LEFT)
+
+        self.jump_btn = ttk.Button(
+            jump_frame,
+            text="跳转",
+            command=self.jump_to_frame
+        )
+        self.jump_btn.pack(side=tk.LEFT, padx=(5, 0))
         
         # 绑定回车键
         self.h_entry.bind('<Return>', lambda e: self.update_coordinates())
         self.w_entry.bind('<Return>', lambda e: self.update_coordinates())
+        self.frame_entry.bind('<Return>', lambda e: self.jump_to_frame())
 
         # ==========================================================
         # 修改 2: 后创建图表区域，并调整 Figure 尺寸
@@ -287,6 +308,40 @@ class VisualizationApp:
         if self.current_idx < len(self.all_predictions) - 1:
             self.current_idx += 1
             self.update_display()
+
+    def jump_to_frame(self):
+        try:
+            new_idx = int(self.frame_entry.get())
+        except ValueError:
+            print("请输入有效的整数帧号！")
+            return
+
+        max_idx = len(self.all_predictions) - 1
+        if 0 <= new_idx <= max_idx:
+            self.current_idx = new_idx
+            self.update_display()
+        else:
+            print(f"帧号超出范围！有效范围: 0-{max_idx}")
+
+    def get_current_defect_type(self):
+        defects_meta = self.defects_meta
+        if defects_meta is None:
+            return "N/A"
+        if not isinstance(defects_meta, (list, tuple)):
+            return "N/A"
+        if not (0 <= self.current_idx < len(defects_meta)):
+            return "N/A"
+
+        defect = defects_meta[self.current_idx]
+        if defect is None:
+            return "None"
+        if isinstance(defect, str):
+            return defect
+
+        name = defect.__class__.__name__
+        if name.endswith("DefectType"):
+            name = name[:-10]
+        return name
     
     def update_display(self):
         # 获取当前帧数据
@@ -391,6 +446,7 @@ class VisualizationApp:
         
         # 更新帧信息
         self.frame_label.config(text=f"帧: {self.current_idx}/{len(self.all_predictions)-1}")
+        self.defect_label.config(text=f"Defect: {self.get_current_defect_type()}")
         
         # 重新绘制
         self.fig.tight_layout(pad=3.0)
@@ -401,6 +457,8 @@ class VisualizationApp:
         self.h_entry.insert(0, str(self.H_idx))
         self.w_entry.delete(0, tk.END)
         self.w_entry.insert(0, str(self.W_idx))
+        self.frame_entry.delete(0, tk.END)
+        self.frame_entry.insert(0, str(self.current_idx))
 
 def main():
     root = tk.Tk()

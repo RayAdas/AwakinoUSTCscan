@@ -5,7 +5,7 @@ import torch
 from rebuild.dataset import DeepImgDataset
 
 from utils.file_io import FileIO
-N_SAMPLES = 16
+N_SAMPLES = 1024
 ENABLE_VISUALIZATION = True
 
 if __name__ == "__main__":
