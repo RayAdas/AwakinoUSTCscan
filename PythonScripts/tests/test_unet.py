@@ -138,7 +138,10 @@ class VisualizationApp:
         self.all_targets = torch.cat(self.all_targets, dim=0).numpy()
         self.all_waves = torch.cat(self.all_waves, dim=0).numpy()
         self.all_heatmaps = torch.cat(self.all_heatmaps, dim=0).numpy()
-        
+
+        print("计算评价指标...")
+        self.compute_and_print_metrics()
+
         # 创建UI
         self.create_widgets()
         
@@ -459,6 +462,43 @@ class VisualizationApp:
         self.w_entry.insert(0, str(self.W_idx))
         self.frame_entry.delete(0, tk.END)
         self.frame_entry.insert(0, str(self.current_idx))
+
+    def compute_and_print_metrics(self) -> None:
+        """Compute per-sample metrics and print the averages."""
+        n = len(self.all_predictions)
+        mae_sum = 0.0
+        rmse_sum = 0.0
+        max_err_sum = 0.0
+        es_sum = 0.0
+
+        for i in range(n):
+            pred = self.all_predictions[i]   # (H, W)
+            gt   = self.all_targets[i]       # (H, W)
+            diff = pred - gt
+
+            mae_sum     += float(np.mean(np.abs(diff)))
+            rmse_sum    += float(np.sqrt(np.mean(diff ** 2)))
+            max_err_sum += float(np.max(np.abs(diff)))
+
+            gy_gt, gx_gt = np.gradient(gt)
+            grad_mag_gt  = np.hypot(gx_gt, gy_gt)
+            edge_mask    = grad_mag_gt > grad_mag_gt.mean()
+
+            gy_pred, gx_pred = np.gradient(pred)
+            grad_mag_pred    = np.hypot(gx_pred, gy_pred)
+            es_sum += (
+                float(grad_mag_pred[edge_mask].mean())
+                if edge_mask.any()
+                else float(grad_mag_pred.mean())
+            )
+
+        print(f"\n=== Evaluation Metrics (averaged over {n} samples) ===")
+        print(f"  MAE:                  {mae_sum / n:.6f}")
+        print(f"  RMSE:                 {rmse_sum / n:.6f}")
+        print(f"  Max Abs Error (avg):  {max_err_sum / n:.6f}")
+        print(f"  Edge Sharpness (ES):  {es_sum / n:.6f}")
+        print("======================================================\n")
+
 
 def main():
     root = tk.Tk()

@@ -13,6 +13,7 @@ from build_real_dataset import (
     TARGET_T,
     analytic_envelope_torch,
     bandpass_fft_torch,
+    load_depth_from_mask,
     remap_t_axis_by_physical_depth,
 )
 from rebuild.dataset import DeepImgDataset
@@ -46,6 +47,46 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42, help="Random seed for sampling points.")
     parser.add_argument("--no-show", action="store_true", help="Do not display matplotlib window.")
     return parser.parse_args()
+
+
+def load_ground_truth_depth(h: int, w: int) -> np.ndarray:
+    """Load ground-truth depth from mask.png and return it in millimetres."""
+    mask_path = os.path.join(FileIO.curr_CS_data_path, "mask.png")
+    depth_m = load_depth_from_mask(mask_path, h, w)
+    return depth_m.astype(np.float32)
+
+
+def compute_metrics(pred_depth_mm: np.ndarray, gt_depth_mm: np.ndarray) -> dict:
+    """Compute evaluation metrics between predicted and ground-truth depth maps (both in mm)."""
+    diff = pred_depth_mm - gt_depth_mm
+    mae = float(np.mean(np.abs(diff)))
+    rmse = float(np.sqrt(np.mean(diff ** 2)))
+    abs_max_err = float(np.max(np.abs(diff)))
+
+    # Edge Sharpness: mean gradient magnitude of predicted depth
+    # evaluated over pixels that lie in ground-truth edge regions
+    # (gradient magnitude > mean gt gradient).
+    gy_gt, gx_gt = np.gradient(gt_depth_mm)
+    grad_mag_gt = np.hypot(gx_gt, gy_gt)
+    edge_mask = grad_mag_gt > grad_mag_gt.mean()
+
+    gy_pred, gx_pred = np.gradient(pred_depth_mm)
+    grad_mag_pred = np.hypot(gx_pred, gy_pred)
+    es = float(grad_mag_pred[edge_mask].mean()) if edge_mask.any() else float(grad_mag_pred.mean())
+
+    return {
+        "MAE (mm)": mae,
+        "RMSE (mm)": rmse,
+        "Max Abs Error (mm)": abs_max_err,
+        "Edge Sharpness (mm/px)": es,
+    }
+
+
+def print_metrics(metrics: dict) -> None:
+    print("\n=== Evaluation Metrics ===")
+    for name, value in metrics.items():
+        print(f"  {name}: {value:.4f}")
+    print("==========================\n")
 
 
 def load_real_data() -> np.ndarray:
@@ -119,7 +160,7 @@ def predict_depth(model: UNet3D, wave_input: torch.Tensor) -> torch.Tensor:
     t = torch.arange(prob.shape[-1], device=prob.device, dtype=prob.dtype).view(1, 1, 1, -1)
     pred_pos = (prob * t).sum(dim=-1)  # (B,H,W)
     pred_depth = DeepImgDataset.wave_pos2real_depth(pred_pos)
-    pred_depth = pred_depth * 1000
+    # pred_depth = pred_depth * 1000
     return pred_depth
 
 def generate_starts(size: int, window: int, stride: int) -> List[int]:
@@ -439,6 +480,15 @@ def main() -> None:
         window=args.window,
         stride=args.stride,
     )
+
+    print("Computing evaluation metrics...")
+    h_out, w_out = pred_depth.shape
+    try:
+        gt_depth_mm = load_ground_truth_depth(h_out, w_out)
+        metrics = compute_metrics(pred_depth, gt_depth_mm)
+        print_metrics(metrics)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Warning: Could not compute evaluation metrics: {exc}")
 
     save_path = os.path.join(FileIO.curr_CS_data_path, args.save_name)
     visualize_hover_waveform_view(
