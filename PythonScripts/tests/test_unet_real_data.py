@@ -416,8 +416,10 @@ def visualize_hover_waveform_view(
 def visualize_total_depth_3d(pred_depth: np.ndarray, save_path: str, show: bool) -> None:
     h, w = pred_depth.shape
     x, y = np.meshgrid(np.arange(w), np.arange(h))
-    z_min = float(np.min(pred_depth))
-    z_max = float(np.max(pred_depth))
+    z_scale = 1000.0
+    pred_depth_3d = pred_depth * z_scale
+    z_min = float(np.min(pred_depth_3d))
+    z_max = float(np.max(pred_depth_3d))
     z_span = max(z_max - z_min, 1e-6)
 
     fig = plt.figure(figsize=(9, 7))
@@ -426,7 +428,7 @@ def visualize_total_depth_3d(pred_depth: np.ndarray, save_path: str, show: bool)
     surf = ax.plot_surface(
         x,
         y,
-        pred_depth,
+        pred_depth_3d,
         cmap="viridis",
         edgecolor="none",
         alpha=0.95,
@@ -436,11 +438,11 @@ def visualize_total_depth_3d(pred_depth: np.ndarray, save_path: str, show: bool)
     ax.set_title("Predicted Depth 3D Surface")
     ax.set_xlabel("W")
     ax.set_ylabel("H")
-    ax.set_zlabel("Depth (m)")
-    # Keep X/Y/Z rendered with a unified data scale.
+    ax.set_zlabel("Depth x1000")
+    # Keep X/Y rendered with the same scale and display scaled Z values.
     ax.set_box_aspect((max(w - 1, 1), max(h - 1, 1), z_span))
     ax.view_init(elev=30, azim=45)
-    fig.colorbar(surf, ax=ax, shrink=0.7, aspect=12, label="Depth (m)")
+    fig.colorbar(surf, ax=ax, shrink=0.7, aspect=12, label="Depth x1000")
 
     fig.tight_layout()
     fig.savefig(save_path, dpi=200)

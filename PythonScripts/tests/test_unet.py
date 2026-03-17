@@ -351,10 +351,15 @@ class VisualizationApp:
         target = self.all_targets[self.current_idx]
         prediction = self.all_predictions[self.current_idx]
         wave = self.all_waves[self.current_idx]
+        z_scale = 1000.0
         
-        # 计算共同的颜色范围
+        # 2D使用原始深度范围，3D使用放大后的Z范围
         vmin = min(target.min(), prediction.min())
         vmax = max(target.max(), prediction.max())
+        target_3d = target * z_scale
+        prediction_3d = prediction * z_scale
+        vmin_3d = min(target_3d.min(), prediction_3d.min())
+        vmax_3d = max(target_3d.max(), prediction_3d.max())
         
         # 清空所有子图
         for ax in [self.ax_2d_t, self.ax_2d_p, self.ax_3d_t, 
@@ -388,37 +393,39 @@ class VisualizationApp:
         X, Y = np.meshgrid(np.arange(W), np.arange(H))
         
         surf_t = self.ax_3d_t.plot_surface(
-            X, Y, target, cmap='viridis', edgecolor='none', 
+            X, Y, target_3d, cmap='viridis', edgecolor='none', 
             alpha=0.9, rstride=2, cstride=2
         )
         self.ax_3d_t.set_title("Dataset 3D Ground Truth")
         self.ax_3d_t.set_xlabel('X')
         self.ax_3d_t.set_ylabel('Y')
-        self.ax_3d_t.set_zlabel('Depth')
+        self.ax_3d_t.set_zlabel('Depth x1000')
+        self.ax_3d_t.set_box_aspect((W, H, max((vmax_3d - vmin_3d), 1e-6)))
         self.ax_3d_t.view_init(elev=30, azim=45)
         if self.surf_3d_t is None:
             self.surf_3d_t = surf_t
             self.cbar_3d_t = self.fig.colorbar(surf_t, ax=self.ax_3d_t, shrink=0.6, aspect=8)
         else:
-            self.surf_3d_t.set_array(target.flatten())
-            self.surf_3d_t.set_clim(vmin, vmax)
+            self.surf_3d_t.set_array(target_3d.flatten())
+            self.surf_3d_t.set_clim(vmin_3d, vmax_3d)
         
         # ========== 4. 3D预测值 ==========
         surf_p = self.ax_3d_p.plot_surface(
-            X, Y, prediction, cmap='viridis', edgecolor='none', 
+            X, Y, prediction_3d, cmap='viridis', edgecolor='none', 
             alpha=0.9, rstride=2, cstride=2
         )
         self.ax_3d_p.set_title("Prediction 3D")
         self.ax_3d_p.set_xlabel('X')
         self.ax_3d_p.set_ylabel('Y')
-        self.ax_3d_p.set_zlabel('Depth')
+        self.ax_3d_p.set_zlabel('Depth x1000')
+        self.ax_3d_p.set_box_aspect((W, H, max((vmax_3d - vmin_3d), 1e-6)))
         self.ax_3d_p.view_init(elev=30, azim=45)
         if self.surf_3d_p is None:
             self.surf_3d_p = surf_p
             self.cbar_3d_p = self.fig.colorbar(surf_p, ax=self.ax_3d_p, shrink=0.6, aspect=8)
         else:
-            self.surf_3d_p.set_array(prediction.flatten())
-            self.surf_3d_p.set_clim(vmin, vmax)
+            self.surf_3d_p.set_array(prediction_3d.flatten())
+            self.surf_3d_p.set_clim(vmin_3d, vmax_3d)
         
         # ========== 5. 输入波形 ==========
         if self.H_idx < H and self.W_idx < W:
